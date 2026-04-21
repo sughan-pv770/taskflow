@@ -6,12 +6,52 @@ const { auditLog } = require('../utils/auditLogger');
 
 /**
  * POST /api/auth/register
- * Register a new organization + admin user
+ * Register a new organization + admin user OR join existing as pending member
  */
 const register = async (req, res) => {
   try {
-    const { orgName, name, email, password } = req.body;
+    const { orgName, name, email, password, mode } = req.body;
 
+    if (mode === 'join') {
+      // Lookup organization
+      const orgs = await query(`SELECT id, slug, name FROM organizations WHERE LOWER(name) = LOWER($1)`, [orgName]);
+      if (!orgs.rows.length) {
+        return res.status(404).json({ error: 'Organization not found. Check the name and try again.' });
+      }
+      
+      const org = orgs.rows[0];
+      
+      // Check email globally
+      const existing = await query(`SELECT id FROM users WHERE email = $1`, [email.toLowerCase()]);
+      if (existing.rows.length) {
+        return res.status(409).json({ error: 'An account with this email already exists.' });
+      }
+
+      const userId = uuidv4();
+      const passwordHash = await bcrypt.hash(password, 12);
+
+      await query(
+        `INSERT INTO users (id, organization_id, name, email, password_hash, role, is_active) VALUES ($1, $2, $3, $4, $5, 'member', false)`,
+        [userId, org.id, name, email.toLowerCase(), passwordHash]
+      );
+
+      await auditLog({
+        organizationId: org.id,
+        actorId: userId,
+        actorName: name,
+        actorEmail: email.toLowerCase(),
+        action: 'USER_REGISTERED_PENDING',
+        entityType: 'user',
+        newValues: { userId, orgId: org.id, role: 'member', status: 'pending' },
+      });
+
+      return res.status(201).json({
+        pending: true,
+        message: 'Registration pending admin approval.'
+      });
+    }
+
+    // mode === 'create'
     // Check email uniqueness across all orgs (global unique email)
     const existing = await query(`SELECT id FROM users WHERE email = $1`, [email.toLowerCase()]);
     if (existing.rows.length) {

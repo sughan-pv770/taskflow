@@ -114,6 +114,42 @@ const deactivateUser = async (req, res) => {
 };
 
 /**
+ * PATCH /api/admin/users/:id/activate
+ */
+const activateUser = async (req, res) => {
+  try {
+    const { organization_id: orgId, id: actorId, name: actorName, email: actorEmail } = req.user;
+    const { id } = req.params;
+
+    const { rows } = await query(
+      `UPDATE users SET is_active = true, updated_at = NOW()
+       WHERE id = $1 AND organization_id = $2
+       RETURNING id, name, email, role, is_active`,
+      [id, orgId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'User not found in your organization.' });
+    }
+
+    await auditLog({
+      organizationId: orgId,
+      actorId,
+      actorName,
+      actorEmail,
+      action: 'USER_ACTIVATED',
+      entityType: 'user',
+      newValues: { userId: id },
+    });
+
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error('Activate user error:', err);
+    return res.status(500).json({ error: 'Failed to activate user.' });
+  }
+};
+
+/**
  * POST /api/admin/invites
  * Send an invite to join the organization
  */
@@ -278,4 +314,4 @@ const listOrgUsers = async (req, res) => {
   }
 };
 
-module.exports = { listUsers, updateUserRole, deactivateUser, createInvite, listInvites, getAuditLogs, getOrg, listOrgUsers };
+module.exports = { listUsers, updateUserRole, deactivateUser, activateUser, createInvite, listInvites, getAuditLogs, getOrg, listOrgUsers };

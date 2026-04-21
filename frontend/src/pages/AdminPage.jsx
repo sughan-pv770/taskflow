@@ -120,6 +120,12 @@ function UsersTab() {
     onError:err=>toast.error(err.response?.data?.error||'Failed.'),
   });
 
+  const activateMutation = useMutation({
+    mutationFn:id=>api.patch(`/admin/users/${id}/activate`),
+    onSuccess:()=>{ toast.success('User activated.'); qc.invalidateQueries(['admin-users']); },
+    onError:err=>toast.error(err.response?.data?.error||'Failed.'),
+  });
+
   const handleInvite = async e => {
     e.preventDefault();
     if (!inviteForm.email) return;
@@ -204,10 +210,15 @@ function UsersTab() {
                       <option value="member">Member</option>
                       <option value="admin">Admin</option>
                     </select>
-                    {u.is_active && (
+                    {u.is_active ? (
                       <button className="btn btn-danger btn-sm"
                         onClick={()=>{ if(window.confirm(`Deactivate ${u.name}?`)) deactivateMutation.mutate(u.id); }}>
                         Deactivate
+                      </button>
+                    ) : (
+                      <button className="btn btn-primary btn-sm"
+                        onClick={()=>{ if(window.confirm(`Activate ${u.name}?`)) activateMutation.mutate(u.id); }}>
+                        Activate
                       </button>
                     )}
                   </div>

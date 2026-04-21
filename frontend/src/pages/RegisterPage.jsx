@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Building2 } from 'lucide-react';
+import { Eye, EyeOff, Building2, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import '../components/ui/components.css';
@@ -10,6 +10,7 @@ export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ orgName:'', name:'', email:'', password:'' });
+  const [mode, setMode] = useState('create'); // 'create' or 'join'
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -29,7 +30,16 @@ export default function RegisterPage() {
 
   const handleSubmit = async (ev) => {
     ev.preventDefault(); if (!validate()) return; setLoading(true);
-    try { await register(form); toast.success('Workspace created — welcome!'); navigate('/dashboard'); }
+    try { 
+      const res = await register({ ...form, mode }); 
+      if (res?.pending) {
+        toast.success('Registration request sent! Please wait for admin approval.');
+        navigate('/login');
+      } else {
+        toast.success('Workspace created — welcome!'); 
+        navigate('/dashboard'); 
+      }
+    }
     catch (err) { toast.error(err.response?.data?.error||'Registration failed.'); }
     finally { setLoading(false); }
   };
@@ -41,8 +51,27 @@ export default function RegisterPage() {
           <div className={styles.logoMark}>T</div>
           <span className={styles.logoName}>Taskflow</span>
         </div>
-        <h2 className={styles.heading}>Create your workspace</h2>
-        <p className={styles.sub}>Set up your organization and start managing work</p>
+        
+        <div style={{display:'flex', gap:8, marginBottom: 20, background: 'var(--c-surface3)', padding: 4, borderRadius: 8}}>
+          <button 
+            type="button"
+            className={`btn btn-sm ${mode==='create'?'btn-primary':'btn-ghost'}`} 
+            style={{flex:1}}
+            onClick={() => setMode('create')}>
+            Create Workspace
+          </button>
+          <button 
+            type="button" 
+            className={`btn btn-sm ${mode==='join'?'btn-primary':'btn-ghost'}`} 
+            style={{flex:1}}
+            onClick={() => setMode('join')}>
+            Join Workspace
+          </button>
+        </div>
+
+        <h2 className={styles.heading}>{mode === 'create' ? 'Create your workspace' : 'Join a workspace'}</h2>
+        <p className={styles.sub}>{mode === 'create' ? 'Set up your organization and start managing work' : 'Enter the organization name to request access'}</p>
+        
         <form onSubmit={handleSubmit} className={styles.form} noValidate>
           <div className="field">
             <label className="field-label">Organization name</label>
@@ -77,8 +106,8 @@ export default function RegisterPage() {
             {errors.password&&<span className="field-error">{errors.password}</span>}
           </div>
           <button type="submit" className="btn btn-primary btn-md" style={{width:'100%',marginTop:4}} disabled={loading}>
-            {loading?<span className="spinner"/>:<Building2 size={15}/>}
-            {loading?'Creating…':'Create Workspace'}
+            {loading?<span className="spinner"/>: (mode === 'create' ? <Building2 size={15}/> : <UserPlus size={15}/>)}
+            {loading? (mode === 'create' ? 'Creating…' : 'Joining...') : (mode === 'create' ? 'Create Workspace' : 'Request to Join')}
           </button>
         </form>
         <p className={styles.switchLink}>Already have an account? <Link to="/login">Sign in</Link></p>

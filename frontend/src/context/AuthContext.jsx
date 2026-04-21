@@ -21,6 +21,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = useCallback(async (payload) => {
     const { data } = await api.post('/auth/register', payload);
+    if (data.pending) return data;
     localStorage.setItem('tf_token', data.token);
     localStorage.setItem('tf_user', JSON.stringify(data.user));
     setUser(data.user);

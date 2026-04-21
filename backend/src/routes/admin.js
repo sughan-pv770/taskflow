@@ -4,7 +4,7 @@ const { body } = require('express-validator');
 const { validate } = require('../middleware/validate');
 const { authenticate, requireRole } = require('../middleware/auth');
 const {
-  listUsers, updateUserRole, deactivateUser,
+  listUsers, updateUserRole, deactivateUser, activateUser,
   createInvite, listInvites, getAuditLogs, getOrg, listOrgUsers
 } = require('../controllers/adminController');
 
@@ -27,6 +27,7 @@ router.patch('/users/:id/role', [
 ], updateUserRole);
 
 router.patch('/users/:id/deactivate', deactivateUser);
+router.patch('/users/:id/activate', activateUser);
 
 router.get('/invites', listInvites);
 
